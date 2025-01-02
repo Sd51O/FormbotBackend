@@ -89,41 +89,35 @@ const userController = {
   },
 
   // Update user password
+  // Update user password
   updateUserPassword: async (req, res) => {
     try {
       const { userId } = req.params;
       const { oldPassword, newPassword } = req.body;
 
-      // Validate request body
       if (!oldPassword || !newPassword) {
         return res.status(400).json({
           message: 'Both old and new passwords are required'
         });
       }
 
-      // Get user
       const user = await User.findById(userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Verify old password
-      const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+      const isValidPassword = await user.comparePassword(oldPassword);
       if (!isValidPassword) {
         return res.status(400).json({ message: 'Current password is incorrect' });
       }
 
-      // Validate new password
       if (newPassword.length < 6) {
         return res.status(400).json({
           message: 'New password must be at least 6 characters long'
         });
       }
 
-      // Hash new password
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(newPassword, salt);
-
+      user.password = newPassword; // Let the pre-save hook handle hashing
       await user.save();
 
       res.status(200).json({ message: 'Password updated successfully' });
@@ -131,7 +125,7 @@ const userController = {
       console.error('Error in updateUserPassword:', error);
       res.status(500).json({ message: 'Error updating password' });
     }
-  },
+  }
 };
 
 export default userController;

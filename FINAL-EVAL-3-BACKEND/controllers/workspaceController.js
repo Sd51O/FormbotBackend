@@ -300,35 +300,50 @@ const workspaceController = {
   },
 
   // Share workspace with another user
-  shareWorkspace: async (req, res) => {
-    const { workspaceId } = req.params;
-    const { username } = req.body;
   
-    try {
-      const workspace = await Workspace.findById(workspaceId);
+    // ... other methods ...
   
-      if (!workspace) {
-        return res.status(404).json({ message: 'Workspace not found' });
+    shareWorkspace: async (req, res) => {
+      const { workspaceId } = req.params;
+      const { email,permissions,username } = req.body;
+    
+      try {
+        const workspace = await Workspace.findById(workspaceId);
+    
+        if (!workspace) {
+          return res.status(404).json({ message: 'Workspace not found' });
+        }
+    
+        const userToShareWith = await User.findOne({ email });
+           // Select additional fields
+    
+        if (!userToShareWith) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+    
+        if (workspace.sharedWith.some(shared => shared.userId.toString() === userToShareWith._id.toString())) {
+          return res.status(400).json({ message: 'Workspace already shared with this user' });
+        }
+    
+        workspace.sharedWith.push({
+          userId: userToShareWith._id,
+          username: username,
+          email: email,
+          permissions:permissions
+        });
+        
+        await workspace.save();
+    
+        // Return populated workspace
+        const populatedWorkspace = await Workspace.findById(workspaceId)
+          .populate('owner', 'username')
+          .populate('sharedWith.userId', 'username email');
+    
+        res.status(200).json(populatedWorkspace);
+      } catch (error) {
+        res.status(500).json({ message: 'Error sharing workspace', error: error.message });
       }
-  
-      const userToShareWith = await User.findOne({ username });
-  
-      if (!userToShareWith) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-  
-      if (workspace.sharedWith.some(shared => shared.userId.toString() === userToShareWith._id.toString())) {
-        return res.status(400).json({ message: 'Workspace already shared with this user' });
-      }
-  
-      workspace.sharedWith.push({ userId: userToShareWith._id });
-      await workspace.save();
-  
-      res.status(200).json({ message: `Workspace shared with ${username}` });
-    } catch (error) {
-      res.status(500).json({ message: 'Error sharing workspace', error: error.message });
     }
-  }
-};
-
-export default workspaceController;
+  };
+  
+  export default workspaceController;
